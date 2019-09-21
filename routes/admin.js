@@ -31,8 +31,6 @@ router.post(
         .trim(),
         body('price')
         .isFloat(),
-        body('imageUrl')
-        .isURL()
     ],
     isAuth, adminController.postAddProduct);
 
@@ -54,9 +52,7 @@ router.post(
         })
         .trim(),
         body('price')
-        .isFloat(),
-        body('imageUrl')
-        .isURL()
+        .isFloat(), 
     ], isAuth, adminController.postEditProduct)
 
 router.post("/delete-product", isAuth, adminController.postDeleteProduct)

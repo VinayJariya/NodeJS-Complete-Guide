@@ -3,6 +3,7 @@ const {
 } = require('express-validator');
 
 const Product = require('../models/product');
+const fileHelper = require('../util/file')
 
 exports.getAddProduct = (req, res, next) => {
     res.render('admin/edit-product', {
@@ -17,12 +18,11 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = (req, res, next) => {
     const title = req.body.title;
-    const imageUrl = req.body.imageUrl;
+    const image = req.file;
     const description = req.body.description;
     const price = req.body.price;
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-        return res.render('admin/edit-product', {
+    if (!image) {
+        return res.status(422).render('admin/edit-product', {
             pageTitle: "Add product",
             path: '/admin/edit-product',
             editing: false,
@@ -30,13 +30,31 @@ exports.postAddProduct = (req, res, next) => {
             product: {
                 title: title,
                 price: price,
-                imageUrl: imageUrl,
+                description: description
+            },
+            errorMessage: 'Attached file is invalid',
+            validationErrors: []
+        });
+    }
+
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.status(422).render('admin/edit-product', {
+            pageTitle: "Add product",
+            path: '/admin/edit-product',
+            editing: false,
+            hasError: true,
+            product: {
+                title: title,
+                price: price,
                 description: description
             },
             errorMessage: errors.array()[0].msg,
             validationErrors: errors.array()
         });
     }
+
+    const imageUrl = image.path;
     const product = new Product({
         title: title,
         description: description,
@@ -83,9 +101,10 @@ exports.getEditProduct = (req, res, next) => {
 exports.postEditProduct = (req, res, next) => {
     const productId = req.body.productId;
     const updatedTitle = req.body.title;
-    const updatedImageUrl = req.body.imageUrl;
+    const updatedImage = req.file;
     const updatedDescription = req.body.description;
     const updatedPrice = req.body.price;
+
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
         return res.render('admin/edit-product', {
@@ -97,7 +116,6 @@ exports.postEditProduct = (req, res, next) => {
                 _id: productId,
                 title: updatedTitle,
                 price: updatedPrice,
-                imageUrl: updatedImageUrl,
                 description: updatedDescription
             },
             errorMessage: errors.array()[0].msg,
@@ -112,7 +130,10 @@ exports.postEditProduct = (req, res, next) => {
             product.title = updatedTitle;
             product.price = updatedPrice;
             product.description = updatedDescription;
-            Product.imageUrl = updatedImageUrl;
+            if (updatedImage) {
+                fileHelper.deleteFile(product.imageUrl);
+                product.imageUrl = updatedImage.path
+            }
             product.save()
                 .then(result => {
                     console.log("Product Updated")
@@ -147,10 +168,17 @@ exports.getProducts = (req, res, next) => {
 };
 
 exports.postDeleteProduct = (req, res, next) => {
-    const productId = req.body.productId
-    Product.deleteOne({
-            _id: productId,
-            userId: req.user._id
+    const productId = req.body.productId;
+    Product.findById(productId)
+        .then(product => {
+            if (!product) {
+                return next(new Error('Product Not Found'))
+            }
+            fileHelper.deleteFile(product.imageUrl);
+            return Product.deleteOne({
+                _id: productId,
+                userId: req.user._id
+            })
         })
         .then(() => {
             console.log("Product Destroyed")
