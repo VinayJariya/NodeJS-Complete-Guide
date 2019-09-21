@@ -7,7 +7,7 @@ exports.getProducts = (req, res, next) => {
             res.render('shop/product-list', {
                 products: products,
                 pageTitle: "All Products",
-                path: "/"
+                path: "/",
             });
         })
         .catch(err => console.log(err));
@@ -20,7 +20,7 @@ exports.getProduct = (req, res, next) => {
             res.render('shop/product-detail', {
                 product: product,
                 pageTitle: product.title,
-                path: "/products"
+                path: "/products",
             })
         }).catch(err => console.log(err))
 }
@@ -31,7 +31,7 @@ exports.getIndex = (req, res, next) => {
             res.render('shop/index', {
                 products: products,
                 pageTitle: "Shop",
-                path: "/"
+                path: "/",
             });
         })
         .catch(err => console.log(err));
@@ -94,7 +94,7 @@ exports.postOrder = (req, res, next) => {
             });
             const order = new Order({
                 user: {
-                    name: req.user.name,
+                    email: req.user.email,
                     userId: req.user
                 },
                 products: products
@@ -119,17 +119,10 @@ exports.getOrders = (req, res, next) => {
             res.render('shop/orders', {
                 pageTitle: "Your Orders",
                 path: "/orders",
-                orders: orders
+                orders: orders,
             });
         })
         .catch(err => {
             console.log(err)
         })
 }
-
-// exports.getCheckout = (req, res, next) => {
-//     res.render('shop/checkout', {
-//         pageTitle: "Checkout",
-//         path: "/checkout"
-//     });
-// }

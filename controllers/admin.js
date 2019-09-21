@@ -1,10 +1,17 @@
+const {
+    validationResult
+} = require('express-validator');
+
 const Product = require('../models/product');
 
 exports.getAddProduct = (req, res, next) => {
     res.render('admin/edit-product', {
         pageTitle: "Add a product",
         path: '/admin/add-product',
-        editing: false
+        editing: false,
+        hasError: false,
+        errorMessage: null,
+        validationErrors: []
     })
 };
 
@@ -13,6 +20,23 @@ exports.postAddProduct = (req, res, next) => {
     const imageUrl = req.body.imageUrl;
     const description = req.body.description;
     const price = req.body.price;
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.render('admin/edit-product', {
+            pageTitle: "Add product",
+            path: '/admin/edit-product',
+            editing: false,
+            hasError: true,
+            product: {
+                title: title,
+                price: price,
+                imageUrl: imageUrl,
+                description: description
+            },
+            errorMessage: errors.array()[0].msg,
+            validationErrors: errors.array()
+        });
+    }
     const product = new Product({
         title: title,
         description: description,
@@ -42,7 +66,10 @@ exports.getEditProduct = (req, res, next) => {
                 pageTitle: "Edit product",
                 path: '/admin/edit-product',
                 editing: editMode,
-                product: product
+                hasError: false,
+                product: product,
+                errorMessage: null,
+                validationErrors: []
             });
         }).catch(err => console.log(err));
 };
@@ -53,23 +80,46 @@ exports.postEditProduct = (req, res, next) => {
     const updatedImageUrl = req.body.imageUrl;
     const updatedDescription = req.body.description;
     const updatedPrice = req.body.price;
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.render('admin/edit-product', {
+            pageTitle: "Edit product",
+            path: '/admin/edit-product',
+            editing: true,
+            hasError: true,
+            product: {
+                _id: productId,
+                title: updatedTitle,
+                price: updatedPrice,
+                imageUrl: updatedImageUrl,
+                description: updatedDescription
+            },
+            errorMessage: errors.array()[0].msg,
+            validationErrors: errors.array()
+        });
+    }
     Product.findById(productId)
         .then(product => {
+            if (product.userId.toString() !== req.user._id.toString()) {
+                return res.redirect('/')
+            }
             product.title = updatedTitle;
             product.price = updatedPrice;
             product.description = updatedDescription;
             Product.imageUrl = updatedImageUrl;
-            product.save();
-        })
-        .then(result => {
-            console.log("Product Updated")
-            res.redirect('/admin/products');
+            product.save()
+                .then(result => {
+                    console.log("Product Updated")
+                    res.redirect('/admin/products');
+                })
         })
         .catch(err => console.log(err))
 };
 
 exports.getProducts = (req, res, next) => {
-    Product.find()
+    Product.find({
+            userId: req.user._id
+        })
         // .select('title price -_id')
         // .populate('userId', 'name')
         .then(products => {
@@ -77,7 +127,7 @@ exports.getProducts = (req, res, next) => {
             res.render('admin/products', {
                 products: products,
                 pageTitle: "Admin Products",
-                path: "/admin/products"
+                path: "/admin/products",
             })
         }).catch(err => {
             console.log(err)
@@ -86,7 +136,10 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
     const productId = req.body.productId
-    Product.findByIdAndRemove(productId)
+    Product.deleteOne({
+            _id: productId,
+            userId: req.user._id
+        })
         .then(() => {
             console.log("Product Destroyed")
             res.redirect('/admin/products')
